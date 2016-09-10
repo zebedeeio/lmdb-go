@@ -8,8 +8,7 @@ reference.
 	http://www.lmdb.tech/doc/starting.html
 	http://www.lmdb.tech/doc/modules.html
 
-
-Environment
+# Environment
 
 An LMDB environment holds named databases (key-value stores).  An environment
 is represented as one file on the filesystem (though often a corresponding lock
@@ -25,8 +24,7 @@ Note that the package lmdb forces all Env objects to be opened with the NoTLS
 (in the author's opinion).  However, even for environments opened with this
 flag there are caveats regarding how transactions are used (see Caveats below).
 
-
-Databases
+# Databases
 
 A database in an LMDB environment is an ordered key-value store that holds
 arbitrary binary data.  Typically the keys are unique but duplicate keys may be
@@ -43,8 +41,7 @@ closed but it is not required.  Typically, applications acquire handles for all
 their databases immediately after opening an environment and retain them for
 the lifetime of the process.
 
-
-Transactions
+# Transactions
 
 View (readonly) transactions in LMDB operate on a snapshot of the database at
 the time the transaction began.  The number of simultaneously active view
@@ -108,8 +105,7 @@ uses a finalizer to abort unreachable Txn objects.  But of course, applications
 must still be careful not to leak unterminated Txn objects in a way such that
 they fail get garbage collected.
 
-
-Caveats
+# Caveats
 
 Write transactions (those created without the Readonly flag) must be created in
 a goroutine that has been locked to its thread by calling the function
@@ -127,6 +123,34 @@ the runtime's thread locking implementation.  In such situations updates
 desired by the goroutine in question must be proxied by a goroutine with a
 known state (i.e.  "locked" or "unlocked").  See the included examples for more
 details about dealing with such situations.
+
+# Comparison Functions
+
+By default stores keys (and values for duplicate keys) sorted lexigraphically
+(e.g. using bytes.Compare).  LMDB allows applications specifying custom
+comparison functions for each database.  There is limited support of this
+feature for Go applications.
+
+Each database can use a custom comparison function.  The package only supports
+comparison functions that are static C functions.  Pass a function pointer, as
+type lmdb.CmpFunc to the SetCmp method in an Update transaction.
+
+	dbi, err := txn.OpenDBI("mydb", 0)
+	cmp := (*lmdb.CmpFunc)(unsafe.Pointer(C.my_comparison_func))
+	err = txn.SetCmp(dbi, cmp)
+
+Make sure to check all errors returned by transaction methods.
+
+For databases allowing duplicate keys (using DupSort) the comparison function
+for values can be defined similarly using the SetCmpDup method.
+
+	dbi, err := txn.OpenDBI("mydb", lmdb.DupSort)
+	cmp := (*lmdb.CmpFunc)(unsafe.Pointer(C.my_dupsort_comparison_func))
+	err = txn.SetCmpDup(dbi, cmp)
+
+The lmdb-go project provides a complete example of an application using custom
+comparison functions in the command
+github.com/bmatsuo/lmdb-go/exp/cmd/lmdb_cmp_simple.
 */
 package lmdb
 
